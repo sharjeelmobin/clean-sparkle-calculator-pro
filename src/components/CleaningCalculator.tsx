@@ -33,9 +33,9 @@ const addOns: AddOn[] = [
 ];
 
 const coupons: Record<string, number> = {
-  'SAVE10': 0.10,
-  'CLEAN20': 0.20,
-  'FIRST15': 0.15
+  'MoM10': 0.10,
+  'MoM20': 0.20,
+  'MoM30': 0.30
 };
 
 const CleaningCalculator: React.FC = () => {
