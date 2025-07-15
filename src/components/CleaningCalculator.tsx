@@ -73,8 +73,8 @@ const CleaningCalculator: React.FC = () => {
   };
 
   const handleCouponApply = () => {
-    if (coupons[couponCode.toUpperCase()]) {
-      setAppliedCoupon(couponCode.toUpperCase());
+    if (coupons[couponCode]) {
+      setAppliedCoupon(couponCode);
     } else {
       setAppliedCoupon('');
     }
