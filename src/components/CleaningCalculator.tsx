@@ -38,6 +38,38 @@ const coupons: Record<string, number> = {
   'MoM30': 0.30
 };
 
+// Tax rate mappings by ZIP code
+const getTaxRate = (zipCode: string): number => {
+  const zip = zipCode.trim();
+  
+  // Group 6: Village of Tijeras — 8.075%
+  if (zip === '87059') return 0.08075;
+  
+  // Group 3: Rio Rancho (Sandoval County) — 7.875%
+  if (['87124', '87144', '87174'].includes(zip)) return 0.07875;
+  
+  // Group 2: Albuquerque (Bernalillo County – city area) — 7.625%
+  const albuquerqueZips = [
+    '87101', '87102', '87103', '87104', '87105', '87106', '87107', '87108', '87109', '87110',
+    '87111', '87112', '87113', '87114', '87115', '87116', '87117', '87119', '87120', '87121',
+    '87122', '87123', '87125', '87131', '87144', '87153', '87154', '87176', '87181', '87184',
+    '87185', '87187', '87190', '87191', '87192', '87193', '87194', '87195', '87196', '87197',
+    '87198', '87199'
+  ];
+  if (albuquerqueZips.includes(zip)) return 0.07625;
+  
+  // Group 1: Los Ranchos de Albuquerque — 7.187%
+  if (['87107', '87114'].includes(zip)) return 0.07187;
+  
+  // Group 4: Sandoval County (outside Rio Rancho) — 6.375%
+  if (['87004', '87013', '87024', '87025', '87041', '87043', '87044', '87053', '87072', '87083'].includes(zip)) return 0.06375;
+  
+  // Group 5: Remainder of Bernalillo County (outside Albuquerque city) — 6.187%
+  if (['87008', '87022', '87047', '87068'].includes(zip)) return 0.06187;
+  
+  return 0; // No tax for other ZIP codes
+};
+
 const CleaningCalculator: React.FC = () => {
   const [squareFootage, setSquareFootage] = useState([1500]);
   const [cleaningType, setCleaningType] = useState('standard');
@@ -56,7 +88,7 @@ const CleaningCalculator: React.FC = () => {
 
   const calculateCost = () => {
     const selectedType = cleaningTypes.find(type => type.id === cleaningType);
-    if (!selectedType) return { subtotal: 0, discount: 0, total: 0, laborHours: 0 };
+    if (!selectedType) return { subtotal: 0, discount: 0, tax: 0, total: 0, laborHours: 0, taxRate: 0 };
 
     const baseCost = squareFootage[0] * selectedType.baseRate;
     const addOnsCost = selectedAddOns.reduce((total, addOnId) => {
@@ -66,10 +98,16 @@ const CleaningCalculator: React.FC = () => {
 
     const subtotal = baseCost + addOnsCost;
     const discount = appliedCoupon ? subtotal * (coupons[appliedCoupon] || 0) : 0;
-    const total = subtotal - discount;
+    const afterDiscount = subtotal - discount;
+    
+    // Calculate tax based on ZIP code
+    const taxRate = getTaxRate(bookingForm.zipCode);
+    const tax = afterDiscount * taxRate;
+    const total = afterDiscount + tax;
+    
     const laborHours = Math.ceil((squareFootage[0] / 1000) * selectedType.timeMultiplier * 2);
 
-    return { subtotal, discount, total, laborHours };
+    return { subtotal, discount, tax, total, laborHours, taxRate };
   };
 
   const handleCouponApply = () => {
@@ -88,7 +126,7 @@ const CleaningCalculator: React.FC = () => {
     }
   };
 
-  const { total, laborHours, discount } = calculateCost();
+  const { total, laborHours, discount, tax, taxRate } = calculateCost();
 
   if (showBookingForm) {
     return (
@@ -183,6 +221,12 @@ const CleaningCalculator: React.FC = () => {
                     <span className="font-medium">-${discount.toFixed(2)}</span>
                   </div>
                 )}
+                {tax > 0 && (
+                  <div className="flex justify-between">
+                    <span>Tax ({(taxRate * 100).toFixed(3)}%):</span>
+                    <span className="font-medium">+${tax.toFixed(2)}</span>
+                  </div>
+                )}
                 <hr className="my-3" />
                 <div className="flex justify-between text-lg font-bold">
                   <span>Total Cost:</span>
@@ -271,6 +315,22 @@ const CleaningCalculator: React.FC = () => {
                   </div>
                 ))}
               </div>
+            </Card>
+
+            {/* ZIP Code */}
+            <Card className="p-6 shadow-lg">
+              <h3 className="text-lg font-semibold text-foreground mb-4">ZIP Code</h3>
+              <Input
+                value={bookingForm.zipCode}
+                onChange={(e) => setBookingForm({...bookingForm, zipCode: e.target.value})}
+                placeholder="Enter your ZIP code for tax calculation"
+                className="w-full"
+              />
+              {bookingForm.zipCode && tax > 0 && (
+                <div className="mt-2 text-sm text-cost-text">
+                  ✓ Tax rate: {(taxRate * 100).toFixed(3)}% (+${tax.toFixed(2)})
+                </div>
+              )}
             </Card>
 
             {/* Coupon Code */}
